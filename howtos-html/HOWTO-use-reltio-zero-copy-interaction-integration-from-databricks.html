@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Use Reltio Zero Copy Interaction Integration from Databricks</title>
+  <style>
+/* Reltio HOWTO — HTML styles
+ * Brand colors:
+ *   Midnight     #000033
+ *   Blue         #000066
+ *   Bright Blue  #0000CC
+ *   Gold         #FFCC00
+ */
+
+:root {
+  --reltio-midnight: #000033;
+  --reltio-blue: #000066;
+  --reltio-bright-blue: #0000CC;
+  --reltio-gold: #FFCC00;
+  --text-primary: #1a1a1a;
+  --text-muted: #555;
+  --border-light: #e1e4e8;
+  --bg-code: #f6f8fa;
+  --bg-callout: #f0f4ff;
+  --bg-disclaimer: #fff8e1;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+  background: #ffffff;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--reltio-midnight);
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: 2.25rem;
+  border-bottom: 3px solid var(--reltio-gold);
+  padding-bottom: 0.5rem;
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 1.6rem;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 0.3rem;
+  margin-top: 2.5rem;
+}
+
+h3 { font-size: 1.25rem; color: var(--reltio-blue); }
+h4 { font-size: 1.1rem; color: var(--reltio-blue); }
+
+/* Paragraphs and links */
+p { margin: 0.75rem 0; }
+
+a {
+  color: var(--reltio-bright-blue);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+/* Lists */
+ul, ol { padding-left: 1.75rem; margin: 0.75rem 0; }
+li { margin: 0.25rem 0; }
+
+/* Code */
+code {
+  font-family: "SF Mono", Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+  background: var(--bg-code);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  color: #d63384;
+}
+
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 1rem;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.875em;
+}
+
+/* Tables */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-size: 0.95em;
+}
+
+th, td {
+  border: 1px solid var(--border-light);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: var(--reltio-midnight);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+tr:nth-child(even) td {
+  background: #fafbfc;
+}
+
+/* Blockquotes / callouts */
+blockquote {
+  border-left: 4px solid var(--reltio-bright-blue);
+  background: var(--bg-callout);
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0 4px 4px 0;
+}
+
+blockquote p { margin: 0.25rem 0; }
+
+/* Disclaimer callout (last blockquote in the doc) */
+blockquote.disclaimer {
+  border-left-color: var(--reltio-gold);
+  background: var(--bg-disclaimer);
+}
+
+/* Horizontal rule */
+hr {
+  border: none;
+  border-top: 1px solid var(--border-light);
+  margin: 2.5rem 0 1.5rem;
+}
+
+/* Mermaid SVG — keep diagrams readable and centered */
+.diagram {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.5rem auto;
+  cursor: zoom-in;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s ease;
+  transform-origin: center center;
+  border-radius: 4px;
+}
+
+/* Click to enlarge — toggle class via JS; hover does nothing */
+.diagram.zoomed {
+  transform: scale(1.8);
+  box-shadow: 0 20px 60px rgba(0, 0, 51, 0.35);
+  position: relative;
+  z-index: 100;
+  background: #ffffff;
+  cursor: zoom-out;
+}
+
+/* highlight.js — GitHub-like theme, compact */
+.hljs { color: #24292e; background: var(--bg-code); }
+.hljs-comment, .hljs-quote { color: #6a737d; font-style: italic; }
+.hljs-keyword, .hljs-selector-tag { color: #d73a49; }
+.hljs-string, .hljs-attr { color: #032f62; }
+.hljs-number, .hljs-literal { color: #005cc5; }
+.hljs-title, .hljs-name { color: #6f42c1; }
+.hljs-section, .hljs-type { color: #22863a; }
+.hljs-tag { color: #22863a; }
+.hljs-built_in, .hljs-builtin-name { color: #e36209; }
+
+/* Footer banner (appears on index.html only) */
+.site-header {
+  border-bottom: 3px solid var(--reltio-gold);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.site-header .subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-top: 0.25rem;
+}
+
+/* Print */
+@media print {
+  body { max-width: none; padding: 1rem; }
+  a { color: var(--text-primary); text-decoration: none; }
+  pre, blockquote { page-break-inside: avoid; }
+}
+
+  </style>
+</head>
+<body>
+<h1 id="howto-use-reltio-zero-copy-interaction-integration-from-databricks">HOWTO: Use Reltio Zero Copy Interaction Integration from Databricks</h1>
+<p>Access interaction and transaction data stored in Databricks directly from Intelligent 360 — without copying that data into Reltio.</p>
+<img class="diagram" src="data:image/svg+xml;base64,PHN2ZyBpZD0ibXktc3ZnIiB3aWR0aD0iMTAwJSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgY2xhc3M9ImZsb3djaGFydCIgc3R5bGU9Im1heC13aWR0aDogMTE3OS4yOHB4OyBiYWNrZ3JvdW5kLWNvbG9yOiB0cmFuc3BhcmVudDsiIHZpZXdCb3g9IjAgMCAxMTc5LjI4MTI1IDE4My42Njc5Njg3NSIgcm9sZT0iZ3JhcGhpY3MtZG9jdW1lbnQgZG9jdW1lbnQiIGFyaWEtcm9sZWRlc2NyaXB0aW9uPSJmbG93Y2hhcnQtdjIiPjxzdHlsZT4jbXktc3Zne2ZvbnQtZmFtaWx5OiJ0cmVidWNoZXQgbXMiLHZlcmRhbmEsYXJpYWwsc2Fucy1zZXJpZjtmb250LXNpemU6MTRweDtmaWxsOiMwMDAwMzM7fUBrZXlmcmFtZXMgZWRnZS1hbmltYXRpb24tZnJhbWV7ZnJvbXtzdHJva2UtZGFzaG9mZnNldDowO319QGtleWZyYW1lcyBkYXNoe3Rve3N0cm9rZS1kYXNob2Zmc2V0OjA7fX0jbXktc3ZnIC5lZGdlLWFuaW1hdGlvbi1zbG93e3N0cm9rZS1kYXNoYXJyYXk6OSw1IWltcG9ydGFudDtzdHJva2UtZGFzaG9mZnNldDo5MDA7YW5pbWF0aW9uOmRhc2ggNTBzIGxpbmVhciBpbmZpbml0ZTtzdHJva2UtbGluZWNhcDpyb3VuZDt9I215LXN2ZyAuZWRnZS1hbmltYXRpb24tZmFzdHtzdHJva2UtZGFzaGFycmF5OjksNSFpbXBvcnRhbnQ7c3Ryb2tlLWRhc2hvZmZzZXQ6OTAwO2FuaW1hdGlvbjpkYXNoIDIwcyBsaW5lYXIgaW5maW5pdGU7c3Ryb2tlLWxpbmVjYXA6cm91bmQ7fSNteS1zdmcgLmVycm9yLWljb257ZmlsbDojZjBmNGZmO30jbXktc3ZnIC5lcnJvci10ZXh0e2ZpbGw6IzBmMGIwMDtzdHJva2U6IzBmMGIwMDt9I215LXN2ZyAuZWRnZS10aGlja25lc3Mtbm9ybWFse3N0cm9rZS13aWR0aDoxcHg7fSNteS1zdmcgLmVkZ2UtdGhpY2tuZXNzLXRoaWNre3N0cm9rZS13aWR0aDozLjVweDt9I215LXN2ZyAuZWRnZS1wYXR0ZXJuLXNvbGlke3N0cm9rZS1kYXNoYXJyYXk6MDt9I215LXN2ZyAuZWRnZS10aGlja25lc3MtaW52aXNpYmxle3N0cm9rZS13aWR0aDowO2ZpbGw6bm9uZTt9I215LXN2ZyAuZWRnZS1wYXR0ZXJuLWRhc2hlZHtzdHJva2UtZGFzaGFycmF5OjM7fSNteS1zdmcgLmVkZ2UtcGF0dGVybi1kb3R0ZWR7c3Ryb2tlLWRhc2hhcnJheToyO30jbXktc3ZnIC5tYXJrZXJ7ZmlsbDojMDAwMDMzO3N0cm9rZTojMDAwMDMzO30jbXktc3ZnIC5tYXJrZXIuY3Jvc3N7c3Ryb2tlOiMwMDAwMzM7fSNteS1zdmcgc3Zne2ZvbnQtZmFtaWx5OiJ0cmVidWNoZXQgbXMiLHZlcmRhbmEsYXJpYWwsc2Fucy1zZXJpZjtmb250LXNpemU6MTRweDt9I215LXN2ZyBwe21hcmdpbjowO30jbXktc3ZnIC5sYWJlbHtmb250LWZhbWlseToidHJlYnVjaGV0IG1zIix2ZXJkYW5hLGFyaWFsLHNhbnMtc2VyaWY7Y29sb3I6I2ZmZmZmZjt9I215LXN2ZyAuY2x1c3Rlci1sYWJlbCB0ZXh0e2ZpbGw6IzBmMGIwMDt9I215LXN2ZyAuY2x1c3Rlci1sYWJlbCBzcGFue2NvbG9yOiMwZjBiMDA7fSNteS1zdmcgLmNsdXN0ZXItbGFiZWwgc3BhbiBwe2JhY2tncm91bmQtY29sb3I6dHJhbnNwYXJlbnQ7fSNteS1zdmcgLmxhYmVsIHRleHQsI215LXN2ZyBzcGFue2ZpbGw6I2ZmZmZmZjtjb2xvcjojZmZmZmZmO30jbXktc3ZnIC5ub2RlIHJlY3QsI215LXN2ZyAubm9kZSBjaXJjbGUsI215LXN2ZyAubm9kZSBlbGxpcHNlLCNteS1zdmcgLm5vZGUgcG9seWdvbiwjbXktc3ZnIC5ub2RlIHBhdGh7ZmlsbDojMDAwMDY2O3N0cm9rZTojMDAwMDMzO3N0cm9rZS13aWR0aDoxcHg7fSNteS1zdmcgLnJvdWdoLW5vZGUgLmxhYmVsIHRleHQsI215LXN2ZyAubm9kZSAubGFiZWwgdGV4dCwjbXktc3ZnIC5pbWFnZS1zaGFwZSAubGFiZWwsI215LXN2ZyAuaWNvbi1zaGFwZSAubGFiZWx7dGV4dC1hbmNob3I6bWlkZGxlO30jbXktc3ZnIC5ub2RlIC5rYXRleCBwYXRoe2ZpbGw6IzAwMDtzdHJva2U6IzAwMDtzdHJva2Utd2lkdGg6MXB4O30jbXktc3ZnIC5yb3VnaC1ub2RlIC5sYWJlbCwjbXktc3ZnIC5ub2RlIC5sYWJlbCwjbXktc3ZnIC5pbWFnZS1zaGFwZSAubGFiZWwsI215LXN2ZyAuaWNvbi1zaGFwZSAubGFiZWx7dGV4dC1hbGlnbjpjZW50ZXI7fSNteS1zdmcgLm5vZGUuY2xpY2thYmxle2N1cnNvcjpwb2ludGVyO30jbXktc3ZnIC5yb290IC5hbmNob3IgcGF0aHtmaWxsOiMwMDAwMzMhaW1wb3J0YW50O3N0cm9rZS13aWR0aDowO3N0cm9rZTojMDAwMDMzO30jbXktc3ZnIC5hcnJvd2hlYWRQYXRoe2ZpbGw6IzBiMGIwYjt9I215LXN2ZyAuZWRnZVBhdGggLnBhdGh7c3Ryb2tlOiMwMDAwMzM7c3Ryb2tlLXdpZHRoOjFweDt9I215LXN2ZyAuZmxvd2NoYXJ0LWxpbmt7c3Ryb2tlOiMwMDAwMzM7ZmlsbDpub25lO30jbXktc3ZnIC5lZGdlTGFiZWx7YmFja2dyb3VuZC1jb2xvcjojZjBmNGZmO3RleHQtYWxpZ246Y2VudGVyO30jbXktc3ZnIC5lZGdlTGFiZWwgcHtiYWNrZ3JvdW5kLWNvbG9yOiNmMGY0ZmY7fSNteS1zdmcgLmVkZ2VMYWJlbCByZWN0e29wYWNpdHk6MC41O2JhY2tncm91bmQtY29sb3I6I2YwZjRmZjtmaWxsOiNmMGY0ZmY7fSNteS1zdmcgLmxhYmVsQmtne2JhY2tncm91bmQtY29sb3I6cmdiYSgyNDAsIDI0NCwgMjU1LCAwLjUpO30jbXktc3ZnIC5jbHVzdGVyIHJlY3R7ZmlsbDojZjBmNGZmO3N0cm9rZTojMDAwMENDO3N0cm9rZS13aWR0aDoxcHg7fSNteS1zdmcgLmNsdXN0ZXIgdGV4dHtmaWxsOiMwZjBiMDA7fSNteS1zdmcgLmNsdXN0ZXIgc3Bhbntjb2xvcjojMGYwYjAwO30jbXktc3ZnIGRpdi5tZXJtYWlkVG9vbHRpcHtwb3NpdGlvbjphYnNvbHV0ZTt0ZXh0LWFsaWduOmNlbnRlcjttYXgtd2lkdGg6MjAwcHg7cGFkZGluZzoycHg7Zm9udC1mYW1pbHk6InRyZWJ1Y2hldCBtcyIsdmVyZGFuYSxhcmlhbCxzYW5zLXNlcmlmO2ZvbnQtc2l6ZToxMnB4O2JhY2tncm91bmQ6I2YwZjRmZjtib3JkZXI6MXB4IHNvbGlkIGhzbCgyMjQsIDYwJSwgODcuMDU4ODIzNTI5NCUpO2JvcmRlci1yYWRpdXM6MnB4O3BvaW50ZXItZXZlbnRzOm5vbmU7ei1pbmRleDoxMDA7fSNteS1zdmcgLmZsb3djaGFydFRpdGxlVGV4dHt0ZXh0LWFuY2hvcjptaWRkbGU7Zm9udC1zaXplOjE4cHg7ZmlsbDojMDAwMDMzO30jbXktc3ZnIHJlY3QudGV4dHtmaWxsOm5vbmU7c3Ryb2tlLXdpZHRoOjA7fSNteS1zdmcgLmljb24tc2hhcGUsI215LXN2ZyAuaW1hZ2Utc2hhcGV7YmFja2dyb3VuZC1jb2xvcjojZjBmNGZmO3RleHQtYWxpZ246Y2VudGVyO30jbXktc3ZnIC5pY29uLXNoYXBlIHAsI215LXN2ZyAuaW1hZ2Utc2hhcGUgcHtiYWNrZ3JvdW5kLWNvbG9yOiNmMGY0ZmY7cGFkZGluZzoycHg7fSNteS1zdmcgLmljb24tc2hhcGUgLmxhYmVsIHJlY3QsI215LXN2ZyAuaW1hZ2Utc2hhcGUgLmxhYmVsIHJlY3R7b3BhY2l0eTowLjU7YmFja2dyb3VuZC1jb2xvcjojZjBmNGZmO2ZpbGw6I2YwZjRmZjt9I215LXN2ZyAubGFiZWwtaWNvbntkaXNwbGF5OmlubGluZS1ibG9jaztoZWlnaHQ6MWVtO292ZXJmbG93OnZpc2libGU7dmVydGljYWwtYWxpZ246LTAuMTI1ZW07fSNteS1zdmcgLm5vZGUgLmxhYmVsLWljb24gcGF0aHtmaWxsOmN1cnJlbnRDb2xvcjtzdHJva2U6cmV2ZXJ0O3N0cm9rZS13aWR0aDpyZXZlcnQ7fSNteS1zdmcgLm5vZGUgLm5lby1ub2Rle3N0cm9rZTojMDAwMDMzO30jbXktc3ZnIFtkYXRhLWxvb2s9Im5lbyJdLm5vZGUgcmVjdCwjbXktc3ZnIFtkYXRhLWxvb2s9Im5lbyJdLmNsdXN0ZXIgcmVjdCwjbXktc3ZnIFtkYXRhLWxvb2s9Im5lbyJdLm5vZGUgcG9seWdvbntzdHJva2U6dXJsKCNteS1zdmctZ3JhZGllbnQpO2ZpbHRlcjpkcm9wLXNoYWRvdyggMXB4IDJweCAycHggcmdiYSgxODUsMTg1LDE4NSwxKSk7fSNteS1zdmcgW2RhdGEtbG9vaz0ibmVvIl0ubm9kZSBwYXRoe3N0cm9rZTp1cmwoI215LXN2Zy1ncmFkaWVudCk7c3Ryb2tlLXdpZHRoOjFweDt9I215LXN2ZyBbZGF0YS1sb29rPSJuZW8iXS5ub2RlIC5vdXRlci1wYXRoe2ZpbHRlcjpkcm9wLXNoYWRvdyggMXB4IDJweCAycHggcmdiYSgxODUsMTg1LDE4NSwxKSk7fSNteS1zdmcgW2RhdGEtbG9vaz0ibmVvIl0ubm9kZSAubmVvLWxpbmUgcGF0aHtzdHJva2U6IzAwMDAzMztmaWx0ZXI6bm9uZTt9I215LXN2ZyBbZGF0YS1sb29rPSJuZW8iXS5ub2RlIGNpcmNsZXtzdHJva2U6dXJsKCNteS1zdmctZ3JhZGllbnQpO2ZpbHRlcjpkcm9wLXNoYWRvdyggMXB4IDJweCAycHggcmdiYSgxODUsMTg1LDE4NSwxKSk7fSNteS1zdmcgW2RhdGEtbG9vaz0ibmVvIl0ubm9kZSBjaXJjbGUgLnN0YXRlLXN0YXJ0e2ZpbGw6IzAwMDAwMDt9I215LXN2ZyBbZGF0YS1sb29rPSJuZW8iXS5pY29uLXNoYXBlIC5pY29ue2ZpbGw6dXJsKCNteS1zdmctZ3JhZGllbnQpO2ZpbHRlcjpkcm9wLXNoYWRvdyggMXB4IDJweCAycHggcmdiYSgxODUsMTg1LDE4NSwxKSk7fSNteS1zdmcgW2RhdGEtbG9vaz0ibmVvIl0uaWNvbi1zaGFwZSAuaWNvbi1uZW8gcGF0aHtzdHJva2U6dXJsKCNteS1zdmctZ3JhZGllbnQpO2ZpbHRlcjpkcm9wLXNoYWRvdyggMXB4IDJweCAycHggcmdiYSgxODUsMTg1LDE4NSwxKSk7fSNteS1zdmcgLmVkZ2VMYWJlbHtjb2xvcjojMDAwMDMzIWltcG9ydGFudDtiYWNrZ3JvdW5kLWNvbG9yOiNmMGY0ZmYhaW1wb3J0YW50O2ZvbnQtd2VpZ2h0OjUwMCFpbXBvcnRhbnQ7fSNteS1zdmcgLmVkZ2VMYWJlbCByZWN0LCNteS1zdmcgLmVkZ2VMYWJlbCBmb3JlaWduT2JqZWN0e2ZpbGw6I2YwZjRmZiFpbXBvcnRhbnQ7fSNteS1zdmcgOnJvb3R7LS1tZXJtYWlkLWZvbnQtZmFtaWx5OiJ0cmVidWNoZXQgbXMiLHZlcmRhbmEsYXJpYWwsc2Fucy1zZXJpZjt9PC9zdHlsZT48Zz48bWFya2VyIGlkPSJteS1zdmdfZmxvd2NoYXJ0LXYyLXBvaW50RW5kIiBjbGFzcz0ibWFya2VyIGZsb3djaGFydC12MiIgdmlld0JveD0iMCAwIDEwIDEwIiByZWZYPSI1IiByZWZZPSI1IiBtYXJrZXJVbml0cz0idXNlclNwYWNlT25Vc2UiIG1hcmtlcldpZHRoPSI4IiBtYXJrZXJIZWlnaHQ9IjgiIG9yaWVudD0iYXV0byI+PHBhdGggZD0iTSAwIDAgTCAxMCA1IEwgMCAxMCB6IiBjbGFzcz0iYXJyb3dNYXJrZXJQYXRoIiBzdHlsZT0ic3Ryb2tlLXdpZHRoOiAxOyBzdHJva2UtZGFzaGFycmF5OiAxLCAwOyIvPjwvbWFya2VyPjxtYXJrZXIgaWQ9Im15LXN2Z19mbG93Y2hhcnQtdjItcG9pbnRTdGFydCIgY2xhc3M9Im1hcmtlciBmbG93Y2hhcnQtdjIiIHZpZXdCb3g9IjAgMCAxMCAxMCIgcmVmWD0iNC41IiByZWZZPSI1IiBtYXJrZXJVbml0cz0idXNlclNwYWNlT25Vc2UiIG1hcmtlcldpZHRoPSI4IiBtYXJrZXJIZWlnaHQ9IjgiIG9yaWVudD0iYXV0byI+PHBhdGggZD0iTSAwIDUgTCAxMCAxMCBMIDEwIDAgeiIgY2xhc3M9ImFycm93TWFya2VyUGF0aCIgc3R5bGU9InN0cm9rZS13aWR0aDogMTsgc3Ryb2tlLWRhc2hhcnJheTogMSwgMDsiLz48L21hcmtlcj48bWFya2VyIGlkPSJteS1zdmdfZmxvd2NoYXJ0LXYyLXBvaW50RW5kLW1hcmdpbiIgY2xhc3M9Im1hcmtlciBmbG93Y2hhcnQtdjIiIHZpZXdCb3g9IjAgMCAxMS41IDE0IiByZWZYPSIxMS41IiByZWZZPSI3IiBtYXJrZXJVbml0cz0idXNlclNwYWNlT25Vc2UiIG1hcmtlcldpZHRoPSIxMC41IiBtYXJrZXJIZWlnaHQ9IjE0IiBvcmllbnQ9ImF1dG8iPjxwYXRoIGQ9Ik0gMCAwIEwgMTEuNSA3IEwgMCAxNCB6IiBjbGFzcz0iYXJyb3dNYXJrZXJQYXRoIiBzdHlsZT0ic3Ryb2tlLXdpZHRoOiAwOyBzdHJva2UtZGFzaGFycmF5OiAxLCAwOyIvPjwvbWFya2VyPjxtYXJrZXIgaWQ9Im15LXN2Z19mbG93Y2hhcnQtdjItcG9pbnRTdGFydC1tYXJnaW4iIGNsYXNzPSJtYXJrZXIgZmxvd2NoYXJ0LXYyIiB2aWV3Qm94PSIwIDAgMTEuNSAxNCIgcmVmWD0iMSIgcmVmWT0iNyIgbWFya2VyVW5pdHM9InVzZXJTcGFjZU9uVXNlIiBtYXJrZXJXaWR0aD0iMTEuNSIgbWFya2VySGVpZ2h0PSIxNCIgb3JpZW50PSJhdXRvIj48cG9seWdvbiBwb2ludHM9IjAsNyAxMS41LDE0IDExLjUsMCIgY2xhc3M9ImFycm93TWFya2VyUGF0aCIgc3R5bGU9InN0cm9rZS13aWR0aDogMDsgc3Ryb2tlLWRhc2hhcnJheTogMSwgMDsiLz48L21hcmtlcj48bWFya2VyIGlkPSJteS1zdmdfZmxvd2NoYXJ0LXYyLWNpcmNsZUVuZCIgY2xhc3M9Im1hcmtlciBmbG93Y2hhcnQtdjIiIHZpZXdCb3g9IjAgMCAxMCAxMCIgcmVmWD0iMTEiIHJlZlk9IjUiIG1hcmtlclVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgbWFya2VyV2lkdGg9IjExIiBtYXJrZXJIZWlnaHQ9IjExIiBvcmllbnQ9ImF1dG8iPjxjaXJjbGUgY3g9IjUiIGN5PSI1IiByPSI1IiBjbGFzcz0iYXJyb3dNYXJrZXJQYXRoIiBzdHlsZT0ic3Ryb2tlLXdpZHRoOiAxOyBzdHJva2UtZGFzaGFycmF5OiAxLCAwOyIvPjwvbWFya2VyPjxtYXJrZXIgaWQ9Im15LXN2Z19mbG93Y2hhcnQtdjItY2lyY2xlU3RhcnQiIGNsYXNzPSJtYXJrZXIgZmxvd2NoYXJ0LXYyIiB2aWV3Qm94PSIwIDAgMTAgMTAiIHJlZlg9Ii0xIiByZWZZPSI1IiBtYXJrZXJVbml0cz0idXNlclNwYWNlT25Vc2UiIG1hcmtlcldpZHRoPSIxMSIgbWFya2VySGVpZ2h0PSIxMSIgb3JpZW50PSJhdXRvIj48Y2lyY2xlIGN4PSI1IiBjeT0iNSIgcj0iNSIgY2xhc3M9ImFycm93TWFya2VyUGF0aCIgc3R5bGU9InN0cm9rZS13aWR0aDogMTsgc3Ryb2tlLWRhc2hhcnJheTogMSwgMDsiLz48L21hcmtlcj48bWFya2VyIGlkPSJteS1zdmdfZmxvd2NoYXJ0LXYyLWNpcmNsZUVuZC1tYXJnaW4iIGNsYXNzPSJtYXJrZXIgZmxvd2NoYXJ0LXYyIiB2aWV3Qm94PSIwIDAgMTAgMTAiIHJlZlk9IjUiIHJlZlg9IjEyLjI1IiBtYXJrZXJVbml0cz0idXNlclNwYWNlT25Vc2UiIG1hcmtlcldpZHRoPSIxNCIgbWFya2VySGVpZ2h0PSIxNCIgb3JpZW50PSJhdXRvIj48Y2lyY2xlIGN4PSI1IiBjeT0iNSIgcj0iNSIgY2xhc3M9ImFycm93TWFya2VyUGF0aCIgc3R5bGU9InN0cm9rZS13aWR0aDogMDsgc3Ryb2tlLWRhc2hhcnJheTogMSwgMDsiLz48L21hcmtlcj48bWFya2VyIGlkPSJteS1zdmdfZmxvd2NoYXJ0LXYyLWNpcmNsZVN0YXJ0LW1hcmdpbiIgY2xhc3M9Im1hcmtlciBmbG93Y2hhcnQtdjIiIHZpZXdCb3g9IjAgMCAxMCAxMCIgcmVmWD0iLTIiIHJlZlk9IjUiIG1hcmtlclVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgbWFya2VyV2lkdGg9IjE0IiBtYXJrZXJIZWlnaHQ9IjE0IiBvcmllbnQ9ImF1dG8iPjxjaXJjbGUgY3g9IjUiIGN5PSI1IiByPSI1IiBjbGFzcz0iYXJyb3dNYXJrZXJQYXRoIiBzdHlsZT0ic3Ryb2tlLXdpZHRoOiAwOyBzdHJva2UtZGFzaGFycmF5OiAxLCAwOyIvPjwvbWFya2VyPjxtYXJrZXIgaWQ9Im15LXN2Z19mbG93Y2hhcnQtdjItY3Jvc3NFbmQiIGNsYXNzPSJtYXJrZXIgY3Jvc3MgZmxvd2NoYXJ0LXYyIiB2aWV3Qm94PSIwIDAgMTEgMTEiIHJlZlg9IjEyIiByZWZZPSI1LjIiIG1hcmtlclVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgbWFya2VyV2lkdGg9IjExIiBtYXJrZXJIZWlnaHQ9IjExIiBvcmllbnQ9ImF1dG8iPjxwYXRoIGQ9Ik0gMSwxIGwgOSw5IE0gMTAsMSBsIC05LDkiIGNsYXNzPSJhcnJvd01hcmtlclBhdGgiIHN0eWxlPSJzdHJva2Utd2lkdGg6IDI7IHN0cm9rZS1kYXNoYXJyYXk6IDEsIDA7Ii8+PC9tYXJrZXI+PG1hcmtlciBpZD0ibXktc3ZnX2Zsb3djaGFydC12Mi1jcm9zc1N0YXJ0IiBjbGFzcz0ibWFya2VyIGNyb3NzIGZsb3djaGFydC12MiIgdmlld0JveD0iMCAwIDExIDExIiByZWZYPSItMSIgcmVmWT0iNS4yIiBtYXJrZXJVbml0cz0idXNlclNwYWNlT25Vc2UiIG1hcmtlcldpZHRoPSIxMSIgbWFya2VySGVpZ2h0PSIxMSIgb3JpZW50PSJhdXRvIj48cGF0aCBkPSJNIDEsMSBsIDksOSBNIDEwLDEgbCAtOSw5IiBjbGFzcz0iYXJyb3dNYXJrZXJQYXRoIiBzdHlsZT0ic3Ryb2tlLXdpZHRoOiAyOyBzdHJva2UtZGFzaGFycmF5OiAxLCAwOyIvPjwvbWFya2VyPjxtYXJrZXIgaWQ9Im15LXN2Z19mbG93Y2hhcnQtdjItY3Jvc3NFbmQtbWFyZ2luIiBjbGFzcz0ibWFya2VyIGNyb3NzIGZsb3djaGFydC12MiIgdmlld0JveD0iMCAwIDE1IDE1IiByZWZYPSIxNy43IiByZWZZPSI3LjUiIG1hcmtlclVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgbWFya2VyV2lkdGg9IjEyIiBtYXJrZXJIZWlnaHQ9IjEyIiBvcmllbnQ9ImF1dG8iPjxwYXRoIGQ9Ik0gMSwxIEwgMTQsMTQgTSAxLDE0IEwgMTQsMSIgY2xhc3M9ImFycm93TWFya2VyUGF0aCIgc3R5bGU9InN0cm9rZS13aWR0aDogMi41OyIvPjwvbWFya2VyPjxtYXJrZXIgaWQ9Im15LXN2Z19mbG93Y2hhcnQtdjItY3Jvc3NTdGFydC1tYXJnaW4iIGNsYXNzPSJtYXJrZXIgY3Jvc3MgZmxvd2NoYXJ0LXYyIiB2aWV3Qm94PSIwIDAgMTUgMTUiIHJlZlg9Ii0zLjUiIHJlZlk9IjcuNSIgbWFya2VyVW5pdHM9InVzZXJTcGFjZU9uVXNlIiBtYXJrZXJXaWR0aD0iMTIiIG1hcmtlckhlaWdodD0iMTIiIG9yaWVudD0iYXV0byI+PHBhdGggZD0iTSAxLDEgTCAxNCwxNCBNIDEsMTQgTCAxNCwxIiBjbGFzcz0iYXJyb3dNYXJrZXJQYXRoIiBzdHlsZT0ic3Ryb2tlLXdpZHRoOiAyLjU7IHN0cm9rZS1kYXNoYXJyYXk6IDEsIDA7Ii8+PC9tYXJrZXI+PGcgY2xhc3M9InJvb3QiPjxnIGNsYXNzPSJjbHVzdGVycyIvPjxnIGNsYXNzPSJlZGdlUGF0aHMiPjxwYXRoIGQ9Ik0xNDUuMTM1LDg4LjE2OEwxNTQuMDY4LDg0LjU0OEMxNjMuMDAxLDgwLjkyNywxODAuODY4LDczLjY4NiwxOTMuNzE4LDcwLjA2NkMyMDYuNTY4LDY2LjQ0NSwyMTQuNDAxLDY2LjQ0NSwyMTguMzE4LDY2LjQ0NUwyMjIuMjM0LDY2LjQ0NSIgaWQ9Im15LXN2Zy1MX0FfQl8wIiBjbGFzcz0iZWRnZS10aGlja25lc3Mtbm9ybWFsIGVkZ2UtcGF0dGVybi1zb2xpZCBlZGdlLXRoaWNrbmVzcy1ub3JtYWwgZWRnZS1wYXR0ZXJuLXNvbGlkIGZsb3djaGFydC1saW5rIiBzdHlsZT0iOyIgZGF0YS1lZGdlPSJ0cnVlIiBkYXRhLWV0PSJlZGdlIiBkYXRhLWlkPSJMX0FfQl8wIiBkYXRhLXBvaW50cz0iVzNzaWVDSTZNVFExTGpFek5EZ3dPVFl4T0RFNE56UXpMQ0o1SWpvNE9DNHhOamM1TmpnM05YMHNleUo0SWpveE9UZ3VOek0wTXpjMUxDSjVJam8yTmk0ME5EVXpNVEkxZlN4N0luZ2lPakl5Tmk0eU16UXpOelVzSW5raU9qWTJMalEwTlRNeE1qVjlYUT09IiBkYXRhLWxvb2s9ImNsYXNzaWMiIG1hcmtlci1lbmQ9InVybCgjbXktc3ZnX2Zsb3djaGFydC12Mi1wb2ludEVuZCkiLz48cGF0aCBkPSJNMzgxLjEyNSw2Ni40NDVMMzg1LjcwOCw2Ni40NDVDMzkwLjI5Miw2Ni40NDUsMzk5LjQ1OCw2Ni40NDUsNDA3Ljk1OCw2Ni40NDVDNDE2LjQ1OCw2Ni40NDUsNDI0LjI5Miw2Ni40NDUsNDI4LjIwOCw2Ni40NDVMNDMyLjEyNSw2Ni40NDUiIGlkPSJteS1zdmctTF9CX0NfMCIgY2xhc3M9ImVkZ2UtdGhpY2tuZXNzLW5vcm1hbCBlZGdlLXBhdHRlcm4tc29saWQgZWRnZS10aGlja25lc3Mtbm9ybWFsIGVkZ2UtcGF0dGVybi1zb2xpZCBmbG93Y2hhcnQtbGluayIgc3R5bGU9IjsiIGRhdGEtZWRnZT0idHJ1ZSIgZGF0YS1ldD0iZWRnZSIgZGF0YS1pZD0iTF9CX0NfMCIgZGF0YS1wb2ludHM9Ilczc2llQ0k2TXpneExqRXlOU3dpZVNJNk5qWXVORFExTXpFeU5YMHNleUo0SWpvME1EZ3VOakkxTENKNUlqbzJOaTQwTkRVek1USTFmU3g3SW5naU9qUXpOaTR4TWpVc0lua2lPalkyTGpRME5UTXhNalY5WFE9PSIgZGF0YS1sb29rPSJjbGFzc2ljIiBtYXJrZXItZW5kPSJ1cmwoI215LXN2Z19mbG93Y2hhcnQtdjItcG9pbnRFbmQpIi8+PHBhdGggZD0iTTU4Mi42MDksNjYuNDQ1TDU4Ny4xOTMsNjYuNDQ1QzU5MS43NzYsNjYuNDQ1LDYwMC45NDMsNjYuNDQ1LDYwOS40NDMsNjYuNDQ1QzYxNy45NDMsNjYuNDQ1LDYyNS43NzYsNjYuNDQ1LDYyOS42OTMsNjYuNDQ1TDYzMy42MDksNjYuNDQ1IiBpZD0ibXktc3ZnLUxfQ19EXzAiIGNsYXNzPSJlZGdlLXRoaWNrbmVzcy1ub3JtYWwgZWRnZS1wYXR0ZXJuLXNvbGlkIGVkZ2UtdGhpY2tuZXNzLW5vcm1hbCBlZGdlLXBhdHRlcm4tc29saWQgZmxvd2NoYXJ0LWxpbmsiIHN0eWxlPSI7IiBkYXRhLWVkZ2U9InRydWUiIGRhdGEtZXQ9ImVkZ2UiIGRhdGEtaWQ9IkxfQ19EXzAiIGRhdGEtcG9pbnRzPSJXM3NpZUNJNk5UZ3lMall3T1RNM05Td2llU0k2TmpZdU5EUTFNekV5Tlgwc2V5SjRJam8yTVRBdU1UQTVNemMxTENKNUlqbzJOaTQwTkRVek1USTFmU3g3SW5naU9qWXpOeTQyTURrek56VXNJbmtpT2pZMkxqUTBOVE14TWpWOVhRPT0iIGRhdGEtbG9vaz0iY2xhc3NpYyIgbWFya2VyLWVuZD0idXJsKCNteS1zdmdfZmxvd2NoYXJ0LXYyLXBvaW50RW5kKSIvPjxwYXRoIGQ9Ik03NDQuMjAzLDU2LjE0OUw3NTIuMTU1LDU0LjQ0OEM3NjAuMTA3LDUyLjc0Nyw3NzYuMDEsNDkuMzQ2LDc4OS41MzEsNDcuNjQ2QzgwMy4wNTIsNDUuOTQ1LDgxNC4xOSw0NS45NDUsODE5Ljc1OSw0NS45NDVMODI1LjMyOCw0NS45NDUiIGlkPSJteS1zdmctTF9EX0VfMCIgY2xhc3M9ImVkZ2UtdGhpY2tuZXNzLW5vcm1hbCBlZGdlLXBhdHRlcm4tc29saWQgZWRnZS10aGlja25lc3Mtbm9ybWFsIGVkZ2UtcGF0dGVybi1zb2xpZCBmbG93Y2hhcnQtbGluayIgc3R5bGU9IjsiIGRhdGEtZWRnZT0idHJ1ZSIgZGF0YS1ldD0iZWRnZSIgZGF0YS1pZD0iTF9EX0VfMCIgZGF0YS1wb2ludHM9Ilczc2llQ0k2TnpRMExqSXdNekl3TWpZek1Ua3pNak1zSW5raU9qVTJMakUwT0RVeE5URXpNVGt6TWpNeWZTeDdJbmdpT2pjNU1TNDVNVFF3TmpJMUxDSjVJam8wTlM0NU5EVXpNVEkxZlN4N0luZ2lPamd5T1M0ek1qZ3hNalVzSW5raU9qUTFMamswTlRNeE1qVjlYUT09IiBkYXRhLWxvb2s9ImNsYXNzaWMiIG1hcmtlci1lbmQ9InVybCgjbXktc3ZnX2Zsb3djaGFydC12Mi1wb2ludEVuZCkiLz48cGF0aCBkPSJNNzM2LjU0Nyw4NC4zOThMNzQ1Ljc3NSw4OC40ODlDNzU1LjAwMyw5Mi41OCw3NzMuNDU4LDEwMC43NjMsNzkyLjgwMiwxMDguNjE3QzgxMi4xNDYsMTE2LjQ3MSw4MzIuMzc4LDEyMy45OTcsODQyLjQ5NCwxMjcuNzZMODUyLjYxLDEzMS41MjMiIGlkPSJteS1zdmctTF9EX0ZfMCIgY2xhc3M9ImVkZ2UtdGhpY2tuZXNzLW5vcm1hbCBlZGdlLXBhdHRlcm4tc29saWQgZWRnZS10aGlja25lc3Mtbm9ybWFsIGVkZ2UtcGF0dGVybi1zb2xpZCBmbG93Y2hhcnQtbGluayIgc3R5bGU9IjsiIGRhdGEtZWRnZT0idHJ1ZSIgZGF0YS1ldD0iZWRnZSIgZGF0YS1pZD0iTF9EX0ZfMCIgZGF0YS1wb2ludHM9Ilczc2llQ0k2TnpNMkxqVTBOekk0T1RZMk5qZzFORGtzSW5raU9qZzBMak01T0RBeU1qZ3pNekUwTlRFeWZTeDdJbmdpT2pjNU1TNDVNVFF3TmpJMUxDSjVJam94TURndU9UUTFNekV5Tlgwc2V5SjRJam80TlRZdU16VTVNemMxTENKNUlqb3hNekl1T1RFNE1ESXdNRGt3TmpBMU9YMWQiIGRhdGEtbG9vaz0iY2xhc3NpYyIgbWFya2VyLWVuZD0idXJsKCNteS1zdmdfZmxvd2NoYXJ0LXYyLXBvaW50RW5kKSIvPjxwYXRoIGQ9Ik04NTYuMzU5LDE2MC4xNTFMODQ1LjYxOCwxNjEuNTI5QzgzNC44NzgsMTYyLjkwNyw4MTMuMzk2LDE2NS42NjIsNzg2LjY3OCwxNjcuMDRDNzU5Ljk2MSwxNjguNDE4LDcyOC4wMDgsMTY4LjQxOCw2OTcuNzA3LDE2OC40MThDNjY3LjQwNiwxNjguNDE4LDYzOC43NTgsMTY4LjQxOCw2MDcuNjQzLDE2OC40MThDNTc2LjUyOSwxNjguNDE4LDU0Mi45NDgsMTY4LjQxOCw1MDkuMzY3LDE2OC40MThDNDc1Ljc4NiwxNjguNDE4LDQ0Mi4yMDYsMTY4LjQxOCw0MDcuOTI0LDE2OC40MThDMzczLjY0MywxNjguNDE4LDMzOC42NjEsMTY4LjQxOCwzMDMuNjgsMTY4LjQxOEMyNjguNjk4LDE2OC40MTgsMjMzLjcxNiwxNjguNDE4LDIwNS43MTQsMTYyLjg1NUMxNzcuNzEyLDE1Ny4yOTIsMTU2LjY4OSwxNDYuMTY1LDE0Ni4xNzcsMTQwLjYwMkwxMzUuNjY2LDEzNS4wMzkiIGlkPSJteS1zdmctTF9GX0FfMCIgY2xhc3M9ImVkZ2UtdGhpY2tuZXNzLW5vcm1hbCBlZGdlLXBhdHRlcm4tc29saWQgZWRnZS10aGlja25lc3Mtbm9ybWFsIGVkZ2UtcGF0dGVybi1zb2xpZCBmbG93Y2hhcnQtbGluayIgc3R5bGU9IjsiIGRhdGEtZWRnZT0idHJ1ZSIgZGF0YS1ldD0iZWRnZSIgZGF0YS1pZD0iTF9GX0FfMCIgZGF0YS1wb2ludHM9Ilczc2llQ0k2T0RVMkxqTTFPVE0zTlN3aWVTSTZNVFl3TGpFMU1UQTNPVGMwTkRJNE1qZDlMSHNpZUNJNk56a3hMamt4TkRBMk1qVXNJbmtpT2pFMk9DNDBNVGM1TmpnM05YMHNleUo0SWpvMk9UWXVNRFUwTmpnM05Td2llU0k2TVRZNExqUXhOemsyT0RjMWZTeDdJbmdpT2pZeE1DNHhNRGt6TnpVc0lua2lPakUyT0M0ME1UYzVOamczTlgwc2V5SjRJam8xTURrdU16WTNNVGczTlN3aWVTSTZNVFk0TGpReE56azJPRGMxZlN4N0luZ2lPalF3T0M0Mk1qVXNJbmtpT2pFMk9DNDBNVGM1TmpnM05YMHNleUo0SWpvek1ETXVOamM1TmpnM05Td2llU0k2TVRZNExqUXhOemsyT0RjMWZTeDdJbmdpT2pFNU9DNDNNelF6TnpVc0lua2lPakUyT0M0ME1UYzVOamczTlgwc2V5SjRJam94TXpJdU1UTXdNemMzTkRNMU1EWTBPVE1zSW5raU9qRXpNeTR4TmpjNU5qZzNOWDFkIiBkYXRhLWxvb2s9ImNsYXNzaWMiIG1hcmtlci1lbmQ9InVybCgjbXktc3ZnX2Zsb3djaGFydC12Mi1wb2ludEVuZCkiLz48cGF0aCBkPSJNOTkyLjI2Niw0NS45NDVMOTk2Ljg0OSw0NS45NDVDMTAwMS40MzIsNDUuOTQ1LDEwMTAuNTk5LDQ1Ljk0NSwxMDE5LjA5OSw0NS45NDVDMTAyNy41OTksNDUuOTQ1LDEwMzUuNDMyLDQ1Ljk0NSwxMDM5LjM0OSw0NS45NDVMMTA0My4yNjYsNDUuOTQ1IiBpZD0ibXktc3ZnLUxfRV9HXzAiIGNsYXNzPSJlZGdlLXRoaWNrbmVzcy1ub3JtYWwgZWRnZS1wYXR0ZXJuLXNvbGlkIGVkZ2UtdGhpY2tuZXNzLW5vcm1hbCBlZGdlLXBhdHRlcm4tc29saWQgZmxvd2NoYXJ0LWxpbmsiIHN0eWxlPSI7IiBkYXRhLWVkZ2U9InRydWUiIGRhdGEtZXQ9ImVkZ2UiIGRhdGEtaWQ9IkxfRV9HXzAiIGRhdGEtcG9pbnRzPSJXM3NpZUNJNk9Ua3lMakkyTlRZeU5Td2llU0k2TkRVdU9UUTFNekV5Tlgwc2V5SjRJam94TURFNUxqYzJOVFl5TlN3aWVTSTZORFV1T1RRMU16RXlOWDBzZXlKNElqb3hNRFEzTGpJMk5UWXlOU3dpZVNJNk5EVXVPVFExTXpFeU5YMWQiIGRhdGEtbG9vaz0iY2xhc3NpYyIgbWFya2VyLWVuZD0idXJsKCNteS1zdmdfZmxvd2NoYXJ0LXYyLXBvaW50RW5kKSIvPjwvZz48ZyBjbGFzcz0iZWRnZUxhYmVscyI+PGcgY2xhc3M9ImVkZ2VMYWJlbCI+PGcgY2xhc3M9ImxhYmVsIiBkYXRhLWlkPSJMX0FfQl8wIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLCAwKSI+PGZvcmVpZ25PYmplY3Qgd2lkdGg9IjAiIGhlaWdodD0iMCI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCIgY2xhc3M9ImxhYmVsQmtnIiBzdHlsZT0iZGlzcGxheTogdGFibGUtY2VsbDsgd2hpdGUtc3BhY2U6IG5vd3JhcDsgbGluZS1oZWlnaHQ6IDEuNTsgbWF4LXdpZHRoOiAyMDBweDsgdGV4dC1hbGlnbjogY2VudGVyOyI+PHNwYW4gY2xhc3M9ImVkZ2VMYWJlbCI+PC9zcGFuPjwvZGl2PjwvZm9yZWlnbk9iamVjdD48L2c+PC9nPjxnIGNsYXNzPSJlZGdlTGFiZWwiPjxnIGNsYXNzPSJsYWJlbCIgZGF0YS1pZD0iTF9CX0NfMCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwgMCkiPjxmb3JlaWduT2JqZWN0IHdpZHRoPSIwIiBoZWlnaHQ9IjAiPjxkaXYgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGh0bWwiIGNsYXNzPSJsYWJlbEJrZyIgc3R5bGU9ImRpc3BsYXk6IHRhYmxlLWNlbGw7IHdoaXRlLXNwYWNlOiBub3dyYXA7IGxpbmUtaGVpZ2h0OiAxLjU7IG1heC13aWR0aDogMjAwcHg7IHRleHQtYWxpZ246IGNlbnRlcjsiPjxzcGFuIGNsYXNzPSJlZGdlTGFiZWwiPjwvc3Bhbj48L2Rpdj48L2ZvcmVpZ25PYmplY3Q+PC9nPjwvZz48ZyBjbGFzcz0iZWRnZUxhYmVsIj48ZyBjbGFzcz0ibGFiZWwiIGRhdGEtaWQ9IkxfQ19EXzAiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsIDApIj48Zm9yZWlnbk9iamVjdCB3aWR0aD0iMCIgaGVpZ2h0PSIwIj48ZGl2IHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hodG1sIiBjbGFzcz0ibGFiZWxCa2ciIHN0eWxlPSJkaXNwbGF5OiB0YWJsZS1jZWxsOyB3aGl0ZS1zcGFjZTogbm93cmFwOyBsaW5lLWhlaWdodDogMS41OyBtYXgtd2lkdGg6IDIwMHB4OyB0ZXh0LWFsaWduOiBjZW50ZXI7Ij48c3BhbiBjbGFzcz0iZWRnZUxhYmVsIj48L3NwYW4+PC9kaXY+PC9mb3JlaWduT2JqZWN0PjwvZz48L2c+PGcgY2xhc3M9ImVkZ2VMYWJlbCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzkxLjkxNDA2MjUsIDQ1Ljk0NTMxMjUpIj48ZyBjbGFzcz0ibGFiZWwiIGRhdGEtaWQ9IkxfRF9FXzAiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC05LjkxNDA2MjUsIC0xMC41KSI+PGZvcmVpZ25PYmplY3Qgd2lkdGg9IjE5LjgyODEyNSIgaGVpZ2h0PSIyMSI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCIgY2xhc3M9ImxhYmVsQmtnIiBzdHlsZT0iZGlzcGxheTogdGFibGUtY2VsbDsgd2hpdGUtc3BhY2U6IG5vd3JhcDsgbGluZS1oZWlnaHQ6IDEuNTsgbWF4LXdpZHRoOiAyMDBweDsgdGV4dC1hbGlnbjogY2VudGVyOyI+PHNwYW4gY2xhc3M9ImVkZ2VMYWJlbCI+PHA+WWVzPC9wPjwvc3Bhbj48L2Rpdj48L2ZvcmVpZ25PYmplY3Q+PC9nPjwvZz48ZyBjbGFzcz0iZWRnZUxhYmVsIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3OTEuOTE0MDYyNSwgMTA4Ljk0NTMxMjUpIj48ZyBjbGFzcz0ibGFiZWwiIGRhdGEtaWQ9IkxfRF9GXzAiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC04LjIyNjU2MjUsIC0xMC41KSI+PGZvcmVpZ25PYmplY3Qgd2lkdGg9IjE2LjQ1MzEyNSIgaGVpZ2h0PSIyMSI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCIgY2xhc3M9ImxhYmVsQmtnIiBzdHlsZT0iZGlzcGxheTogdGFibGUtY2VsbDsgd2hpdGUtc3BhY2U6IG5vd3JhcDsgbGluZS1oZWlnaHQ6IDEuNTsgbWF4LXdpZHRoOiAyMDBweDsgdGV4dC1hbGlnbjogY2VudGVyOyI+PHNwYW4gY2xhc3M9ImVkZ2VMYWJlbCI+PHA+Tm88L3A+PC9zcGFuPjwvZGl2PjwvZm9yZWlnbk9iamVjdD48L2c+PC9nPjxnIGNsYXNzPSJlZGdlTGFiZWwiPjxnIGNsYXNzPSJsYWJlbCIgZGF0YS1pZD0iTF9GX0FfMCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwgMCkiPjxmb3JlaWduT2JqZWN0IHdpZHRoPSIwIiBoZWlnaHQ9IjAiPjxkaXYgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGh0bWwiIGNsYXNzPSJsYWJlbEJrZyIgc3R5bGU9ImRpc3BsYXk6IHRhYmxlLWNlbGw7IHdoaXRlLXNwYWNlOiBub3dyYXA7IGxpbmUtaGVpZ2h0OiAxLjU7IG1heC13aWR0aDogMjAwcHg7IHRleHQtYWxpZ246IGNlbnRlcjsiPjxzcGFuIGNsYXNzPSJlZGdlTGFiZWwiPjwvc3Bhbj48L2Rpdj48L2ZvcmVpZ25PYmplY3Q+PC9nPjwvZz48ZyBjbGFzcz0iZWRnZUxhYmVsIj48ZyBjbGFzcz0ibGFiZWwiIGRhdGEtaWQ9IkxfRV9HXzAiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsIDApIj48Zm9yZWlnbk9iamVjdCB3aWR0aD0iMCIgaGVpZ2h0PSIwIj48ZGl2IHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hodG1sIiBjbGFzcz0ibGFiZWxCa2ciIHN0eWxlPSJkaXNwbGF5OiB0YWJsZS1jZWxsOyB3aGl0ZS1zcGFjZTogbm93cmFwOyBsaW5lLWhlaWdodDogMS41OyBtYXgtd2lkdGg6IDIwMHB4OyB0ZXh0LWFsaWduOiBjZW50ZXI7Ij48c3BhbiBjbGFzcz0iZWRnZUxhYmVsIj48L3NwYW4+PC9kaXY+PC9mb3JlaWduT2JqZWN0PjwvZz48L2c+PC9nPjxnIGNsYXNzPSJub2RlcyI+PGcgY2xhc3M9Im5vZGUgZGVmYXVsdCIgaWQ9Im15LXN2Zy1mbG93Y2hhcnQtQS0wIiBkYXRhLWxvb2s9ImNsYXNzaWMiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDg5LjYxNzE4NzUsIDExMC42Njc5Njg3NSkiPjxyZWN0IGNsYXNzPSJiYXNpYyBsYWJlbC1jb250YWluZXIiIHN0eWxlPSIiIHg9Ii04MS42MTcxODc1IiB5PSItMjIuNSIgd2lkdGg9IjE2My4yMzQzNzUiIGhlaWdodD0iNDUiLz48ZyBjbGFzcz0ibGFiZWwiIHN0eWxlPSIiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC01Ny42MTcxODc1LCAtMTAuNSkiPjxyZWN0Lz48Zm9yZWlnbk9iamVjdCB3aWR0aD0iMTE1LjIzNDM3NSIgaGVpZ2h0PSIyMSI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCIgc3R5bGU9ImRpc3BsYXk6IHRhYmxlLWNlbGw7IHdoaXRlLXNwYWNlOiBub3dyYXA7IGxpbmUtaGVpZ2h0OiAxLjU7IG1heC13aWR0aDogMjAwcHg7IHRleHQtYWxpZ246IGNlbnRlcjsiPjxzcGFuIGNsYXNzPSJub2RlTGFiZWwiPjxwPkNyZWF0ZSBjb25uZWN0aW9uPC9wPjwvc3Bhbj48L2Rpdj48L2ZvcmVpZ25PYmplY3Q+PC9nPjwvZz48ZyBjbGFzcz0ibm9kZSBkZWZhdWx0IiBpZD0ibXktc3ZnLWZsb3djaGFydC1CLTEiIGRhdGEtbG9vaz0iY2xhc3NpYyIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzAzLjY3OTY4NzUsIDY2LjQ0NTMxMjUpIj48cmVjdCBjbGFzcz0iYmFzaWMgbGFiZWwtY29udGFpbmVyIiBzdHlsZT0iIiB4PSItNzcuNDQ1MzEyNSIgeT0iLTIyLjUiIHdpZHRoPSIxNTQuODkwNjI1IiBoZWlnaHQ9IjQ1Ii8+PGcgY2xhc3M9ImxhYmVsIiBzdHlsZT0iIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtNTMuNDQ1MzEyNSwgLTEwLjUpIj48cmVjdC8+PGZvcmVpZ25PYmplY3Qgd2lkdGg9IjEwNi44OTA2MjUiIGhlaWdodD0iMjEiPjxkaXYgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGh0bWwiIHN0eWxlPSJkaXNwbGF5OiB0YWJsZS1jZWxsOyB3aGl0ZS1zcGFjZTogbm93cmFwOyBsaW5lLWhlaWdodDogMS41OyBtYXgtd2lkdGg6IDIwMHB4OyB0ZXh0LWFsaWduOiBjZW50ZXI7Ij48c3BhbiBjbGFzcz0ibm9kZUxhYmVsIj48cD5TdG9yZSBjcmVkZW50aWFsczwvcD48L3NwYW4+PC9kaXY+PC9mb3JlaWduT2JqZWN0PjwvZz48L2c+PGcgY2xhc3M9Im5vZGUgZGVmYXVsdCIgaWQ9Im15LXN2Zy1mbG93Y2hhcnQtQy0zIiBkYXRhLWxvb2s9ImNsYXNzaWMiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDUwOS4zNjcxODc1LCA2Ni40NDUzMTI1KSI+PHJlY3QgY2xhc3M9ImJhc2ljIGxhYmVsLWNvbnRhaW5lciIgc3R5bGU9IiIgeD0iLTczLjI0MjE4NzUiIHk9Ii0yMi41IiB3aWR0aD0iMTQ2LjQ4NDM3NSIgaGVpZ2h0PSI0NSIvPjxnIGNsYXNzPSJsYWJlbCIgc3R5bGU9IiIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTQ5LjI0MjE4NzUsIC0xMC41KSI+PHJlY3QvPjxmb3JlaWduT2JqZWN0IHdpZHRoPSI5OC40ODQzNzUiIGhlaWdodD0iMjEiPjxkaXYgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGh0bWwiIHN0eWxlPSJkaXNwbGF5OiB0YWJsZS1jZWxsOyB3aGl0ZS1zcGFjZTogbm93cmFwOyBsaW5lLWhlaWdodDogMS41OyBtYXgtd2lkdGg6IDIwMHB4OyB0ZXh0LWFsaWduOiBjZW50ZXI7Ij48c3BhbiBjbGFzcz0ibm9kZUxhYmVsIj48cD5UZXN0IGNvbm5lY3Rpb248L3A+PC9zcGFuPjwvZGl2PjwvZm9yZWlnbk9iamVjdD48L2c+PC9nPjxnIGNsYXNzPSJub2RlIGRlZmF1bHQiIGlkPSJteS1zdmctZmxvd2NoYXJ0LUQtNSIgZGF0YS1sb29rPSJjbGFzc2ljIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2OTYuMDU0Njg3NSwgNjYuNDQ1MzEyNSkiPjxwb2x5Z29uIHBvaW50cz0iNTguNDQ1MzEyNSwwIDExNi44OTA2MjUsLTU4LjQ0NTMxMjUgNTguNDQ1MzEyNSwtMTE2Ljg5MDYyNSAwLC01OC40NDUzMTI1IiBjbGFzcz0ibGFiZWwtY29udGFpbmVyIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtNTcuOTQ1MzEyNSwgNTguNDQ1MzEyNSkiLz48ZyBjbGFzcz0ibGFiZWwiIHN0eWxlPSIiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0zNS45NDUzMTI1LCAtMTAuNSkiPjxyZWN0Lz48Zm9yZWlnbk9iamVjdCB3aWR0aD0iNzEuODkwNjI1IiBoZWlnaHQ9IjIxIj48ZGl2IHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hodG1sIiBzdHlsZT0iZGlzcGxheTogdGFibGUtY2VsbDsgd2hpdGUtc3BhY2U6IG5vd3JhcDsgbGluZS1oZWlnaHQ6IDEuNTsgbWF4LXdpZHRoOiAyMDBweDsgdGV4dC1hbGlnbjogY2VudGVyOyI+PHNwYW4gY2xhc3M9Im5vZGVMYWJlbCI+PHA+Q29ubmVjdGVkPzwvcD48L3NwYW4+PC9kaXY+PC9mb3JlaWduT2JqZWN0PjwvZz48L2c+PGcgY2xhc3M9Im5vZGUgZGVmYXVsdCIgaWQ9Im15LXN2Zy1mbG93Y2hhcnQtRS03IiBkYXRhLWxvb2s9ImNsYXNzaWMiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDkxMC43OTY4NzUsIDQ1Ljk0NTMxMjUpIj48cmVjdCBjbGFzcz0iYmFzaWMgbGFiZWwtY29udGFpbmVyIiBzdHlsZT0iIiB4PSItODEuNDY4NzUiIHk9Ii0yMi41IiB3aWR0aD0iMTYyLjkzNzUiIGhlaWdodD0iNDUiLz48ZyBjbGFzcz0ibGFiZWwiIHN0eWxlPSIiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC01Ny40Njg3NSwgLTEwLjUpIj48cmVjdC8+PGZvcmVpZ25PYmplY3Qgd2lkdGg9IjExNC45Mzc1IiBoZWlnaHQ9IjIxIj48ZGl2IHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hodG1sIiBzdHlsZT0iZGlzcGxheTogdGFibGUtY2VsbDsgd2hpdGUtc3BhY2U6IG5vd3JhcDsgbGluZS1oZWlnaHQ6IDEuNTsgbWF4LXdpZHRoOiAyMDBweDsgdGV4dC1hbGlnbjogY2VudGVyOyI+PHNwYW4gY2xhc3M9Im5vZGVMYWJlbCI+PHA+TWFwIHNvdXJjZSBvYmplY3Q8L3A+PC9zcGFuPjwvZGl2PjwvZm9yZWlnbk9iamVjdD48L2c+PC9nPjxnIGNsYXNzPSJub2RlIGRlZmF1bHQiIGlkPSJteS1zdmctZmxvd2NoYXJ0LUYtOSIgZGF0YS1sb29rPSJjbGFzc2ljIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5MTAuNzk2ODc1LCAxNTMuMTY3OTY4NzUpIj48cmVjdCBjbGFzcz0iYmFzaWMgbGFiZWwtY29udGFpbmVyIiBzdHlsZT0iIiB4PSItNTQuNDM3NSIgeT0iLTIyLjUiIHdpZHRoPSIxMDguODc1IiBoZWlnaHQ9IjQ1Ii8+PGcgY2xhc3M9ImxhYmVsIiBzdHlsZT0iIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMzAuNDM3NSwgLTEwLjUpIj48cmVjdC8+PGZvcmVpZ25PYmplY3Qgd2lkdGg9IjYwLjg3NSIgaGVpZ2h0PSIyMSI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCIgc3R5bGU9ImRpc3BsYXk6IHRhYmxlLWNlbGw7IHdoaXRlLXNwYWNlOiBub3dyYXA7IGxpbmUtaGVpZ2h0OiAxLjU7IG1heC13aWR0aDogMjAwcHg7IHRleHQtYWxpZ246IGNlbnRlcjsiPjxzcGFuIGNsYXNzPSJub2RlTGFiZWwiPjxwPkZpeCBjb25maWc8L3A+PC9zcGFuPjwvZGl2PjwvZm9yZWlnbk9iamVjdD48L2c+PC9nPjxnIGNsYXNzPSJub2RlIGRlZmF1bHQiIGlkPSJteS1zdmctZmxvd2NoYXJ0LUctMTMiIGRhdGEtbG9vaz0iY2xhc3NpYyIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTEwOS4yNzM0Mzc1LCA0NS45NDUzMTI1KSI+PHJlY3QgY2xhc3M9ImJhc2ljIGxhYmVsLWNvbnRhaW5lciIgc3R5bGU9IiIgeD0iLTYyLjAwNzgxMjUiIHk9Ii0yMi41IiB3aWR0aD0iMTI0LjAxNTYyNSIgaGVpZ2h0PSI0NSIvPjxnIGNsYXNzPSJsYWJlbCIgc3R5bGU9IiIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTM4LjAwNzgxMjUsIC0xMC41KSI+PHJlY3QvPjxmb3JlaWduT2JqZWN0IHdpZHRoPSI3Ni4wMTU2MjUiIGhlaWdodD0iMjEiPjxkaXYgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGh0bWwiIHN0eWxlPSJkaXNwbGF5OiB0YWJsZS1jZWxsOyB3aGl0ZS1zcGFjZTogbm93cmFwOyBsaW5lLWhlaWdodDogMS41OyBtYXgtd2lkdGg6IDIwMHB4OyB0ZXh0LWFsaWduOiBjZW50ZXI7Ij48c3BhbiBjbGFzcz0ibm9kZUxhYmVsIj48cD5WaWV3IGluIEkzNjA8L3A+PC9zcGFuPjwvZGl2PjwvZm9yZWlnbk9iamVjdD48L2c+PC9nPjwvZz48L2c+PC9nPjxkZWZzPjxmaWx0ZXIgaWQ9Im15LXN2Zy1kcm9wLXNoYWRvdyIgaGVpZ2h0PSIxMzAlIiB3aWR0aD0iMTMwJSI+PGZlRHJvcFNoYWRvdyBkeD0iNCIgZHk9IjQiIHN0ZERldmlhdGlvbj0iMCIgZmxvb2Qtb3BhY2l0eT0iMC4wNiIgZmxvb2QtY29sb3I9IiMwMDAwMDAiLz48L2ZpbHRlcj48L2RlZnM+PGRlZnM+PGZpbHRlciBpZD0ibXktc3ZnLWRyb3Atc2hhZG93LXNtYWxsIiBoZWlnaHQ9IjE1MCUiIHdpZHRoPSIxNTAlIj48ZmVEcm9wU2hhZG93IGR4PSIyIiBkeT0iMiIgc3RkRGV2aWF0aW9uPSIwIiBmbG9vZC1vcGFjaXR5PSIwLjA2IiBmbG9vZC1jb2xvcj0iIzAwMDAwMCIvPjwvZmlsdGVyPjwvZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9Im15LXN2Zy1ncmFkaWVudCIgZ3JhZGllbnRVbml0cz0ib2JqZWN0Qm91bmRpbmdCb3giIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMDAwMDMzIiBzdG9wLW9wYWNpdHk9IjEiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9ImhzbCgwLCAwJSwgODYuMDc4NDMxMzcyNSUpIiBzdG9wLW9wYWNpdHk9IjEiLz48L2xpbmVhckdyYWRpZW50Pjwvc3ZnPg==" alt="Workflow diagram" /><h2 id="overview">Overview</h2>
+<p>This guide walks you through configuring Reltio <a href="#glossary">Zero Copy Integration</a> to query interaction data stored in Databricks and display it alongside mastered profiles in <a href="#glossary">Intelligent 360</a>. You&#39;ll create a connection, store OAuth credentials, test connectivity, and map a Databricks source object to a Reltio <a href="#glossary">interaction type</a>.</p>
+<p>This guide is for these Reltio roles: <strong>Data Product Owner</strong>, <strong>Data Steward</strong>, <strong>Solution Architect</strong>, <strong>System Administrator</strong>. For more information on data unification roles in the Reltio Context Intelligence Platform, see <a href="https://docs.reltio.com/en/roles/about-roles">About roles</a>.</p>
+<h2 id="contents">Contents</h2>
+<ol>
+<li><a href="#1-getting-started">Getting started</a></li>
+<li><a href="#2-key-concepts">Key concepts</a></li>
+<li><a href="#3-create-a-databricks-connection">Create a Databricks connection</a></li>
+<li><a href="#4-store-databricks-oauth-credentials">Store Databricks OAuth credentials</a></li>
+<li><a href="#5-test-the-databricks-connection">Test the Databricks connection</a></li>
+<li><a href="#6-map-a-databricks-source-object-to-an-interaction-type">Map a Databricks source object to an interaction type</a></li>
+<li><a href="#7-troubleshooting">Troubleshooting</a></li>
+<li><a href="#8-further-reading">Further reading</a></li>
+<li><a href="#9-glossary">Glossary</a></li>
+</ol>
+<h2 id="1-getting-started">1. Getting started</h2>
+<p>Before you begin, confirm the following are in place:</p>
+<ul>
+<li>A Reltio role that allows you to manage data integrations, such as <code>ROLE_ADMIN</code> or <code>PUBLIC</code>.</li>
+<li>A running Databricks <a href="#glossary">SQL Warehouse</a>.</li>
+<li>A Databricks <a href="#glossary">service principal</a> with an OAuth client ID and client secret.</li>
+<li>Databricks permissions that allow the service principal to access integration objects:<ul>
+<li><code>CAN USE</code> on the SQL Warehouse.</li>
+<li><code>USE CATALOG</code> on the target catalog.</li>
+<li><code>USE SCHEMA</code> on the target schema.</li>
+<li><code>SELECT</code> on each target table or view.</li>
+</ul>
+</li>
+<li>An existing Reltio interaction type to use in the mapping.</li>
+<li>The Databricks workspace URL, warehouse ID, and shared catalog name for your source data.</li>
+<li><code>curl</code> (or another HTTP client like Postman) installed on your machine.</li>
+<li>A valid Reltio access token. Store it in a variable for reuse:</li>
+</ul>
+<pre><code class="language-bash hljs"><span class="hljs-built_in">export</span> TOKEN=<span class="hljs-string">&quot;YOUR_ACCESS_TOKEN&quot;</span>
+<span class="hljs-built_in">export</span> PLATFORM_URL=<span class="hljs-string">&quot;https://YOUR_PLATFORM_URL&quot;</span>
+<span class="hljs-built_in">export</span> TENANT_ID=<span class="hljs-string">&quot;YOUR_TENANT_ID&quot;</span></code></pre>
+<blockquote>
+<p><strong>Learn more:</strong> <a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/configure-reltio-zero-copy-interaction-integration-from-databricks-using-apis">Configure Reltio Zero Copy Interaction Integration from Databricks using APIs</a> in the Reltio documentation.</p>
+</blockquote>
+<h2 id="2-key-concepts">2. Key concepts</h2>
+<p><strong><a href="#glossary">Zero Copy Integration</a></strong> lets Reltio query external datasets — like transactions or events — without copying them into the platform. Instead of traditional ETL pipelines, Reltio sends real-time, filtered queries to the external data source and federates the results into the Intelligent 360 experience.</p>
+<p>With the Databricks integration, Databricks remains the source for interaction and transaction data, while Reltio remains the source for mastered profile data. Reltio reads mapped Databricks tables or views on demand and links the interaction data to profiles through <a href="#glossary">crosswalk</a> IDs. Entity and demographic data must already be loaded into Reltio so that Reltio can perform identity resolution and maintain mastered profiles.</p>
+<p>This integration enables you to:</p>
+<ul>
+<li>Leverage interaction and transaction datasets in Databricks without replication.</li>
+<li>Link Databricks datasets to Reltio profiles through crosswalk IDs.</li>
+</ul>
+<p>The architecture connects Reltio to Databricks through a configured connection, an <a href="#glossary">interaction mapping</a>, and OAuth 2.0 machine-to-machine authentication with a Databricks service principal. Reltio accesses only the Databricks SQL Warehouse and <a href="#glossary">Unity Catalog</a> objects that the configured service principal is allowed to use — Databricks continues to control access to the external interaction data.</p>
+<blockquote>
+<p><strong>Important:</strong> This integration uses OAuth 2.0 machine-to-machine authentication. Reltio authenticates to Databricks using a service principal instead of a user sign-in. Personal Access Tokens aren&#39;t supported.</p>
+</blockquote>
+<blockquote>
+<p><strong>Learn more:</strong> <a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance">Reltio Zero Copy Interaction Integration from Databricks at a glance</a> in the Reltio documentation.</p>
+</blockquote>
+<h2 id="3-create-a-databricks-connection">3. Create a Databricks connection</h2>
+<p><code>POST /reltio/api/tenants/{tenantId}/interactions/database-configs/</code></p>
+<p>Create a named Databricks connection configuration in Reltio. The connection defines the Databricks workspace, SQL Warehouse, shared catalog, connection properties, and authentication type. When the request succeeds, Reltio saves the configuration and returns a generated <code>connectionId</code>.</p>
+<p><strong>Request</strong></p>
+<pre><code class="language-bash hljs">curl -s -X POST <span class="hljs-string">&quot;<span class="hljs-variable">${PLATFORM_URL}</span>/reltio/api/tenants/<span class="hljs-variable">${TENANT_ID}</span>/interactions/database-configs/&quot;</span> \
+  -H <span class="hljs-string">&quot;Authorization: Bearer <span class="hljs-variable">${TOKEN}</span>&quot;</span> \
+  -H <span class="hljs-string">&quot;Content-Type: application/json&quot;</span> \
+  -d <span class="hljs-string">&#x27;{
+    &quot;connection_name&quot;: &quot;my-databricks-connection&quot;,
+    &quot;database_type&quot;: &quot;DATABRICKS&quot;,
+    &quot;databricks_config&quot;: {
+      &quot;workspace&quot;: {
+        &quot;workspace_url&quot;: &quot;https://adb-1234567890123456.7.azuredatabricks.net&quot;,
+        &quot;workspace_id&quot;: &quot;1234567890123456&quot;,
+        &quot;region&quot;: &quot;us-east-1&quot;,
+        &quot;cloud_provider&quot;: &quot;AWS&quot;
+      },
+      &quot;sql_warehouse&quot;: {
+        &quot;warehouse_id&quot;: &quot;abc123def456&quot;,
+        &quot;warehouse_name&quot;: &quot;my-warehouse&quot;,
+        &quot;size&quot;: &quot;SMALL&quot;,
+        &quot;auto_stop&quot;: true,
+        &quot;auto_stop_minutes&quot;: 10
+      },
+      &quot;share_info&quot;: {
+        &quot;shared_catalog_name&quot;: &quot;reltio_interactions&quot;
+      },
+      &quot;connection_properties&quot;: {
+        &quot;query_timeout&quot;: 300,
+        &quot;max_pool_size&quot;: 5
+      },
+      &quot;auth_type&quot;: &quot;OAUTH_M2M&quot;
+    }
+  }&#x27;</span> | jq .</code></pre>
+<p>The following table describes the required request body parameters:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>connection_name</code></td>
+<td>String</td>
+<td>Unique name for the Databricks connection within the tenant</td>
+</tr>
+<tr>
+<td><code>database_type</code></td>
+<td>String</td>
+<td>Must be <code>DATABRICKS</code></td>
+</tr>
+<tr>
+<td><code>databricks_config.workspace.workspace_url</code></td>
+<td>String</td>
+<td>Full HTTPS URL of the Databricks workspace</td>
+</tr>
+<tr>
+<td><code>databricks_config.sql_warehouse.warehouse_id</code></td>
+<td>String</td>
+<td>Databricks SQL Warehouse identifier</td>
+</tr>
+<tr>
+<td><code>databricks_config.share_info.shared_catalog_name</code></td>
+<td>String</td>
+<td>Unity Catalog name that Reltio uses for mapped tables or views</td>
+</tr>
+<tr>
+<td><code>databricks_config.auth_type</code></td>
+<td>String</td>
+<td>Must be <code>OAUTH_M2M</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Note:</strong> This endpoint accepts additional optional parameters such as <code>workspace_id</code>, <code>region</code>, <code>cloud_provider</code>, <code>warehouse_name</code>, <code>size</code>, <code>auto_stop</code>, <code>auto_stop_minutes</code>, <code>query_timeout</code>, and <code>max_pool_size</code>. See the <a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/create-a-databricks-connection-configuration">official documentation</a> for the full parameter reference.</p>
+</blockquote>
+<p><strong>Response</strong></p>
+<p>If the request succeeds, Reltio returns HTTP <code>201 Created</code> with the saved connection configuration, including the generated <code>connectionId</code>:</p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;successful&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">true</span></span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;result&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;connection_id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;e1fc522f-8380-4177-98b9-acd63767d73b&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;connection_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;my-databricks-connection&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;tenant_id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;YOUR_TENANT_ID&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;database_type&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;DATABRICKS&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;databricks_config&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+            <span class="hljs-attr">&quot;workspace&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+                <span class="hljs-attr">&quot;workspace_url&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://adb-1234567890123456.7.azuredatabricks.net&quot;</span><span class="hljs-punctuation">,</span>
+                <span class="hljs-attr">&quot;workspace_id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1234567890123456&quot;</span><span class="hljs-punctuation">,</span>
+                <span class="hljs-attr">&quot;region&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;us-east-1&quot;</span><span class="hljs-punctuation">,</span>
+                <span class="hljs-attr">&quot;cloud_provider&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;AWS&quot;</span>
+            <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+            <span class="hljs-attr">&quot;share_info&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+                <span class="hljs-attr">&quot;shared_catalog_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;reltio_interactions&quot;</span>
+            <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+            <span class="hljs-attr">&quot;sql_warehouse&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+                <span class="hljs-attr">&quot;warehouse_id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;abc123def456&quot;</span><span class="hljs-punctuation">,</span>
+                <span class="hljs-attr">&quot;size&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;SMALL&quot;</span><span class="hljs-punctuation">,</span>
+                <span class="hljs-attr">&quot;auto_stop&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">true</span></span><span class="hljs-punctuation">,</span>
+                <span class="hljs-attr">&quot;auto_stop_minutes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span>
+            <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+            <span class="hljs-attr">&quot;connection_properties&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+                <span class="hljs-attr">&quot;queryTimeout&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">120000</span><span class="hljs-punctuation">,</span>
+                <span class="hljs-attr">&quot;maxPoolSize&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span>
+            <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+            <span class="hljs-attr">&quot;auth_type&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;OAUTH_M2M&quot;</span>
+        <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;PENDING&quot;</span><span class="hljs-punctuation">,</span>
+        ...
+    <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></code></pre>
+<p>Save the <code>connection_name</code> value — you&#39;ll need it for the next steps.</p>
+<h3 id="key-rules">Key rules</h3>
+<ul>
+<li><strong>Connection names are unique per tenant</strong> — if you reuse a name that already exists, the API returns <code>400 Bad Request</code>.</li>
+<li><strong><code>auth_type</code> must be <code>OAUTH_M2M</code></strong> — this is the only supported authentication type for Databricks connections.</li>
+<li><strong><code>database_type</code> must be <code>DATABRICKS</code></strong> — this distinguishes it from Snowflake-based Zero Copy connections.</li>
+</ul>
+<h3 id="what-can-go-wrong">What can go wrong</h3>
+<table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>400 Bad Request</code> — connection name already exists</td>
+<td>A connection with the same name is already defined for this tenant</td>
+<td>Choose a different <code>connection_name</code></td>
+</tr>
+<tr>
+<td><code>401 Unauthorized</code></td>
+<td>Expired or invalid Reltio access token</td>
+<td>Re-authenticate and get a new token</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Learn more:</strong> <a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/create-a-databricks-connection-configuration">Create a Databricks connection configuration</a> in the Reltio documentation.</p>
+</blockquote>
+<h2 id="4-store-databricks-oauth-credentials">4. Store Databricks OAuth credentials</h2>
+<p><code>POST /reltio/api/tenants/{tenantId}/interactions/database-configs/{connectionName}/databricks/oauth/credentials</code></p>
+<p>Store the Databricks service principal client ID and client secret in Reltio. Reltio uses these credentials to request and refresh Databricks access tokens automatically. This operation doesn&#39;t require a public key or a SQL statement in Databricks.</p>
+<p><strong>Request</strong></p>
+<pre><code class="language-bash hljs">curl -s -X POST <span class="hljs-string">&quot;<span class="hljs-variable">${PLATFORM_URL}</span>/reltio/api/tenants/<span class="hljs-variable">${TENANT_ID}</span>/interactions/database-configs/my-databricks-connection/databricks/oauth/credentials&quot;</span> \
+  -H <span class="hljs-string">&quot;Authorization: Bearer <span class="hljs-variable">${TOKEN}</span>&quot;</span> \
+  -H <span class="hljs-string">&quot;Content-Type: application/json&quot;</span> \
+  -d <span class="hljs-string">&#x27;{
+    &quot;clientId&quot;: &quot;YOUR_DATABRICKS_CLIENT_ID&quot;,
+    &quot;clientSecret&quot;: &quot;YOUR_DATABRICKS_CLIENT_SECRET&quot;
+  }&#x27;</span> | jq .</code></pre>
+<p>Replace <code>my-databricks-connection</code> with the <code>connection_name</code> you used in the previous step.</p>
+<p>The following table describes the request body parameters:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>clientId</code></td>
+<td>String</td>
+<td>Yes</td>
+<td>OAuth client ID of the Databricks service principal</td>
+</tr>
+<tr>
+<td><code>clientSecret</code></td>
+<td>String</td>
+<td>Yes</td>
+<td>OAuth client secret of the Databricks service principal</td>
+</tr>
+</tbody></table>
+<p><strong>Response</strong></p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Databricks M2M OAuth credentials stored successfully&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;connectionId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;e1fc522f-8380-4177-98b9-acd63767d73b&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;connectionName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;my-databricks-connection&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;timestamp&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1743600000000</span>
+  <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></code></pre>
+<h3 id="key-rules">Key rules</h3>
+<ul>
+<li><strong>Both <code>clientId</code> and <code>clientSecret</code> are required</strong> — omitting either returns a <code>400 Bad Request</code> error.</li>
+<li><strong>Credentials are stored per connection</strong> — each Databricks connection has its own set of OAuth credentials.</li>
+</ul>
+<h3 id="what-can-go-wrong">What can go wrong</h3>
+<table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>DS_DATABRICKS_OAUTH_CLIENT_ID_REQUIRED</code></td>
+<td>The <code>clientId</code> field is null or empty</td>
+<td>Provide a valid service principal client ID</td>
+</tr>
+<tr>
+<td><code>DS_DATABRICKS_OAUTH_CLIENT_SECRET_REQUIRED</code></td>
+<td>The <code>clientSecret</code> field is null or empty</td>
+<td>Provide a valid service principal client secret</td>
+</tr>
+<tr>
+<td><code>401 Unauthorized</code></td>
+<td>Expired or invalid Reltio access token</td>
+<td>Re-authenticate and get a new token</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Learn more:</strong> <a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/store-databricks-oauth-credentials">Store Databricks OAuth credentials</a> in the Reltio documentation.</p>
+</blockquote>
+<h2 id="5-test-the-databricks-connection">5. Test the Databricks connection</h2>
+<p><code>POST /reltio/api/tenants/{tenantId}/interactions/database-configs/{connectionName}/test</code></p>
+<p>Verify that Reltio can connect to the Databricks SQL Warehouse using the stored OAuth credentials. Always test before creating the interaction mapping.</p>
+<p><strong>Request</strong></p>
+<pre><code class="language-bash hljs">curl -s -X POST <span class="hljs-string">&quot;<span class="hljs-variable">${PLATFORM_URL}</span>/reltio/api/tenants/<span class="hljs-variable">${TENANT_ID}</span>/interactions/database-configs/my-databricks-connection/test&quot;</span> \
+  -H <span class="hljs-string">&quot;Authorization: Bearer <span class="hljs-variable">${TOKEN}</span>&quot;</span> \
+  -H <span class="hljs-string">&quot;Content-Type: application/json&quot;</span> | jq .</code></pre>
+<p>This operation doesn&#39;t require a request body.</p>
+<p><strong>Response</strong></p>
+<p>If the connection test succeeds:</p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;connected&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">true</span></span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;databaseType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;DATABRICKS&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Connection successful&quot;</span>
+  <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></code></pre>
+<p>If the connection test fails:</p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;connected&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">false</span></span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;databaseType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;DATABRICKS&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Connection failed: Unable to connect to SQL Warehouse&quot;</span>
+  <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></code></pre>
+<h3 id="key-rules">Key rules</h3>
+<ul>
+<li><strong>This endpoint always returns HTTP <code>200 OK</code></strong> — even when the connection fails. Check the <code>data.connected</code> field to determine the actual result.</li>
+<li><strong>Test before mapping</strong> — if the connection isn&#39;t valid, the mapping step won&#39;t work.</li>
+</ul>
+<h3 id="what-can-go-wrong">What can go wrong</h3>
+<table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>connected: false</code> — unable to connect to SQL Warehouse</td>
+<td>Incorrect warehouse ID, workspace URL, or service principal permissions</td>
+<td>Verify the workspace URL and warehouse ID in your connection config. Confirm the service principal has <code>CAN USE</code> on the SQL Warehouse</td>
+</tr>
+<tr>
+<td><code>connected: false</code> — OAuth authentication failed</td>
+<td>Invalid or expired service principal credentials</td>
+<td>Re-store the credentials using the Store Databricks OAuth credentials API</td>
+</tr>
+<tr>
+<td><code>401 Unauthorized</code></td>
+<td>Expired or invalid Reltio access token</td>
+<td>Re-authenticate and get a new token</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Learn more:</strong> <a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/test-a-databricks-connection">Test a Databricks connection</a> in the Reltio documentation.</p>
+</blockquote>
+<h2 id="6-map-a-databricks-source-object-to-an-interaction-type">6. Map a Databricks source object to an interaction type</h2>
+<p><code>PUT /reltio/api/tenants/{tenantId}/zero-copy-interactions/mappings/{connectionId}</code></p>
+<p>Define which Databricks table or view Reltio queries, which columns come back as interaction attributes, and how Databricks rows link to Reltio entities through crosswalk IDs.</p>
+<p><strong>Request</strong></p>
+<pre><code class="language-bash hljs">curl -s -X PUT <span class="hljs-string">&quot;<span class="hljs-variable">${PLATFORM_URL}</span>/reltio/api/tenants/<span class="hljs-variable">${TENANT_ID}</span>/zero-copy-interactions/mappings/e1fc522f-8380-4177-98b9-acd63767d73b&quot;</span> \
+  -H <span class="hljs-string">&quot;Authorization: Bearer <span class="hljs-variable">${TOKEN}</span>&quot;</span> \
+  -H <span class="hljs-string">&quot;Content-Type: application/json&quot;</span> \
+  -d <span class="hljs-string">&#x27;{
+    &quot;interaction_id&quot;: &quot;customer_purchases_v1&quot;,
+    &quot;interaction_type&quot;: &quot;CustomerPurchase&quot;,
+    &quot;table_name&quot;: &quot;reltio_interactions.customer_data.purchases&quot;,
+    &quot;timestamp_column&quot;: &quot;purchase_timestamp&quot;,
+    &quot;order_by_column&quot;: &quot;purchase_timestamp&quot;,
+    &quot;attributes&quot;: [
+      { &quot;attribute_display_name&quot;: &quot;Amount&quot;, &quot;column_name&quot;: &quot;amount&quot;, &quot;data_type&quot;: &quot;Decimal&quot; },
+      { &quot;attribute_display_name&quot;: &quot;Channel&quot;, &quot;column_name&quot;: &quot;channel&quot;, &quot;data_type&quot;: &quot;String&quot; },
+      { &quot;attribute_display_name&quot;: &quot;Product&quot;, &quot;column_name&quot;: &quot;product&quot;, &quot;data_type&quot;: &quot;String&quot; }
+    ],
+    &quot;member_mappings&quot;: [
+      { &quot;member_type&quot;: &quot;Individual&quot;, &quot;column_name&quot;: &quot;customer_crosswalk_id&quot; },
+      { &quot;member_type&quot;: &quot;Organization&quot;, &quot;column_name&quot;: &quot;org_crosswalk_id&quot; }
+    ]
+  }&#x27;</span> | jq .</code></pre>
+<p>Replace the <code>connectionId</code> in the URL path with the value returned from step 3.</p>
+<p>The following table describes the required request body parameters:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>interaction_id</code></td>
+<td>String</td>
+<td>Unique identifier for this interaction mapping</td>
+</tr>
+<tr>
+<td><code>interaction_type</code></td>
+<td>String</td>
+<td>Name of an existing Reltio interaction type</td>
+</tr>
+<tr>
+<td><code>table_name</code></td>
+<td>String</td>
+<td>Fully qualified Databricks source object in <code>catalog.schema.table</code> format</td>
+</tr>
+<tr>
+<td><code>timestamp_column</code></td>
+<td>String</td>
+<td>Source column used as the interaction timestamp</td>
+</tr>
+<tr>
+<td><code>order_by_column</code></td>
+<td>String</td>
+<td>Source column used to sort returned rows</td>
+</tr>
+<tr>
+<td><code>attributes</code></td>
+<td>Array</td>
+<td>Databricks columns returned as interaction attributes — each with <code>attribute_display_name</code>, <code>column_name</code>, and <code>data_type</code></td>
+</tr>
+<tr>
+<td><code>member_mappings</code></td>
+<td>Array</td>
+<td>Links Reltio entity types to Databricks columns that contain crosswalk IDs — each with <code>member_type</code> and <code>column_name</code></td>
+</tr>
+</tbody></table>
+<p><strong>Response</strong></p>
+<p>If the request succeeds, Reltio returns HTTP <code>200 OK</code> with the saved mapping:</p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;successful&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">true</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;result&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;interaction_id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;d444c359-438f-497a-b1a4-ee76d3f82914&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;interaction_type&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;CustomerPurchase&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;table_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;purchases&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;database_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;reltio_interactions&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;schema_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;customer_data&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;order_by_column&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;purchase_timestamp&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;attributes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+        <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;attribute_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Amount&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;column_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;amount&quot;</span> <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;attribute_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Channel&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;column_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;channel&quot;</span> <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;attribute_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Product&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;column_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;product&quot;</span> <span class="hljs-punctuation">}</span>
+      <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;member_mappings&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+        <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;member_type&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Individual&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;column_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;customer_crosswalk_id&quot;</span> <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;member_type&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Organization&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;column_name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;org_crosswalk_id&quot;</span> <span class="hljs-punctuation">}</span>
+      <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;created_time&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2026-04-02T10:17:07.609044726&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;updated_time&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2026-04-02T10:17:07.609044726&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;deleted&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">false</span></span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;timestamp_column&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;purchase_timestamp&quot;</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span></code></pre>
+<p>After this step, Reltio can query the mapped Databricks source and return matching interaction data for related profiles in Intelligent 360 — without copying that data into Reltio.</p>
+<h3 id="key-rules">Key rules</h3>
+<ul>
+<li><strong>The <code>table_name</code> uses the Unity Catalog three-part name</strong> — <code>catalog.schema.table</code>. This lets Reltio identify the mapped object in the Databricks catalog structure.</li>
+<li><strong>The <code>interaction_type</code> must already exist</strong> in your Reltio tenant configuration. If it doesn&#39;t, the API returns a validation error.</li>
+<li><strong>Each <code>member_mappings</code> entry links one entity type</strong> — the <code>column_name</code> must contain crosswalk IDs that match the crosswalks on your Reltio entities.</li>
+<li><strong>Attribute names in the mapping must match</strong> the attributes configured on the interaction type in Reltio.</li>
+</ul>
+<h3 id="what-can-go-wrong">What can go wrong</h3>
+<table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>400 Bad Request</code> — attribute not configured for interaction type</td>
+<td>An attribute name in your mapping doesn&#39;t match the Reltio interaction type configuration</td>
+<td>Check the attribute names configured on your interaction type and correct the mapping</td>
+</tr>
+<tr>
+<td><code>400 Bad Request</code> — type is not found</td>
+<td>The interaction type doesn&#39;t exist in the tenant</td>
+<td>Create the interaction type in your Reltio tenant configuration first</td>
+</tr>
+<tr>
+<td><code>401 Unauthorized</code></td>
+<td>Expired or invalid Reltio access token</td>
+<td>Re-authenticate and get a new token</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Learn more:</strong> <a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/map-a-databricks-source-object-to-a-reltio-interaction-type">Map a Databricks source object to a Reltio interaction type</a> in the Reltio documentation.</p>
+</blockquote>
+<h2 id="7-troubleshooting">7. Troubleshooting</h2>
+<p>These are the most common issues when setting up Zero Copy Interaction Integration from Databricks:</p>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Connection test returns <code>connected: false</code></td>
+<td>Incorrect workspace URL, warehouse ID, or insufficient service principal permissions</td>
+<td>Verify <code>workspace_url</code> and <code>warehouse_id</code> in the connection config. Confirm the service principal has <code>CAN USE</code> on the SQL Warehouse, <code>USE CATALOG</code>, <code>USE SCHEMA</code>, and <code>SELECT</code> on the target objects</td>
+</tr>
+<tr>
+<td>OAuth credential storage fails</td>
+<td>Missing or empty <code>clientId</code> or <code>clientSecret</code></td>
+<td>Provide both the service principal client ID and client secret</td>
+</tr>
+<tr>
+<td>Mapping fails with &quot;attribute not configured&quot;</td>
+<td>Attribute name in the mapping doesn&#39;t match the Reltio interaction type</td>
+<td>Verify attribute names match exactly between the mapping and the interaction type configuration</td>
+</tr>
+<tr>
+<td>Mapping fails with &quot;type is not found&quot;</td>
+<td>The specified interaction type doesn&#39;t exist in the tenant</td>
+<td>Create the interaction type in your Reltio tenant before creating the mapping</td>
+</tr>
+<tr>
+<td>Connection name already exists error</td>
+<td>A connection with the same name is already defined for this tenant</td>
+<td>Choose a unique <code>connection_name</code> or update the existing connection</td>
+</tr>
+<tr>
+<td>Interaction data doesn&#39;t appear in Intelligent 360</td>
+<td>Crosswalk IDs in Databricks don&#39;t match crosswalks on Reltio entities</td>
+<td>Verify that the crosswalk column in your Databricks table contains values that match existing crosswalk IDs on your Reltio entities</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Learn more:</strong> <a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-architecture">Reltio Zero Copy Interaction Integration from Databricks architecture</a> in the Reltio documentation.</p>
+</blockquote>
+<h2 id="8-further-reading">8. Further reading</h2>
+<ul>
+<li><a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance">Zero Copy Integration at a glance</a></li>
+<li><a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance">Reltio Zero Copy Interaction Integration from Databricks at a glance</a></li>
+<li><a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-architecture">Reltio Zero Copy Interaction Integration from Databricks architecture</a></li>
+<li><a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/configure-reltio-zero-copy-interaction-integration-from-databricks-using-apis">Configure Reltio Zero Copy Interaction Integration from Databricks using APIs</a></li>
+<li><a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/create-a-databricks-connection-configuration">Create a Databricks connection configuration</a></li>
+<li><a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/store-databricks-oauth-credentials">Store Databricks OAuth credentials</a></li>
+<li><a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/test-a-databricks-connection">Test a Databricks connection</a></li>
+<li><a href="https://docs.reltio.com/en/applications/data-integrations/zero-copy-integration-at-a-glance/reltio-zero-copy-interaction-integration-from-databricks-at-a-glance/map-a-databricks-source-object-to-a-reltio-interaction-type">Map a Databricks source object to a Reltio interaction type</a></li>
+</ul>
+<h2 id="9-glossary">9. Glossary</h2>
+<p><strong>Crosswalk:</strong> A reference that links a Reltio entity back to its record in a source system. Each crosswalk includes a source name and a source-system identifier. In Zero Copy Integration, crosswalk IDs in Databricks columns are used to associate interaction rows with the correct Reltio entity.</p>
+<p><strong>Intelligent 360:</strong> The Reltio experience that presents a unified view of mastered profile data alongside related interactions, relationships, and external data. Zero Copy Integration makes Databricks interaction data available in this view.</p>
+<p><strong>Interaction mapping:</strong> A configuration that defines which Databricks source object Reltio queries, which columns are returned as interaction attributes, and how Databricks rows are linked to Reltio entities through crosswalk IDs.</p>
+<p><strong>Interaction type:</strong> A classification in the Reltio data model that represents a category of interaction or transaction, such as a purchase, a support call, or a claim. The interaction type must exist in the Reltio tenant configuration before you can create a Zero Copy mapping.</p>
+<p><strong>Service principal:</strong> A Databricks identity used for machine-to-machine authentication. Instead of a user sign-in, Reltio authenticates to Databricks using the service principal&#39;s OAuth client ID and client secret.</p>
+<p><strong>SQL Warehouse:</strong> A Databricks compute resource that executes SQL queries. Reltio sends filtered queries to the SQL Warehouse when retrieving interaction data for a profile.</p>
+<p><strong>Unity Catalog:</strong> The Databricks governance layer that organizes data into catalogs, schemas, and tables. Databricks source objects are referenced using the three-part name format: <code>catalog.schema.table</code>.</p>
+<p><strong>Zero Copy Integration:</strong> A Reltio capability that lets the platform query external datasets — such as interactions or transactions — without copying them into Reltio. Reltio sends real-time, filtered queries to the external source and federates the results into Intelligent 360.</p>
+<hr>
+<blockquote class="disclaimer">
+<p><strong>Disclaimer:</strong> AI-generated from the Reltio documentation snapshot 2026-05-06 02:14 UTC (3,240 topics). AI output can contain subtle inaccuracies, and the knowledge base syncs twice a week — so the content here may lag <a href="https://docs.reltio.com">docs.reltio.com</a>. Verify anything critical against the official docs and your own tenant. Full disclaimer: <a href="DISCLAIMER.html">DISCLAIMER.md</a>.</p>
+</blockquote>
+
+<script>
+  // Click-to-zoom for workflow diagrams — toggle zoomed class on click,
+  // dismiss on second click or by clicking anywhere outside the diagram.
+  document.querySelectorAll('.diagram').forEach(function (img) {
+    img.addEventListener('click', function (e) {
+      e.stopPropagation();
+      img.classList.toggle('zoomed');
+    });
+  });
+  document.addEventListener('click', function () {
+    document.querySelectorAll('.diagram.zoomed').forEach(function (img) {
+      img.classList.remove('zoomed');
+    });
+  });
+</script>
+</body>
+</html>
